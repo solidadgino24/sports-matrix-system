@@ -1,0 +1,15 @@
+/vendor/
+/node_modules/
+/uploads/
+/cache/
+/logs/
+.env
+*.log
+*.cache
+*.zip
+*.rar
+*.sql
+.idea/
+.vscode/
+Thumbs.db
+desktop.ini

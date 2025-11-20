@@ -1,0 +1,6 @@
+[14-Nov-2025 17:00:46 Asia/Manila] PHP Notice:  session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\sport\action.php on line 202
+[14-Nov-2025 17:00:46 Asia/Manila] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'sport_id' in 'field list' in C:\xampp\htdocs\sport\action.php:235
+Stack trace:
+#0 C:\xampp\htdocs\sport\action.php(235): mysqli->query('\r\n            I...')
+#1 {main}
+  thrown in C:\xampp\htdocs\sport\action.php on line 235
