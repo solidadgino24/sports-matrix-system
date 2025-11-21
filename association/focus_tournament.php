@@ -29,7 +29,7 @@ $query = $con->query("SELECT ta.app_id,p.profile,p.fullname,p.gender,ta.jersey_n
         <h2><?php echo $row['name']." (".$row['sport_name'].")" ?></h2>
         <div class="head-buttons">
             <button class="btn add_player" data_id='<?php echo $id ?>'>Add Player</button>
-            <button class="btn score_board" data_id='<?php echo $id ?>'>Scoreboard</button>
+            <!-- <button class="btn score_board" data_id='<?php echo $id ?>'>Scoreboard</button> -->
         </div>
     </div>
     <div class="body">
