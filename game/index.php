@@ -14,6 +14,7 @@
         echo "/Match Concluded!";
         die();
     }
+    
     $score_id = $con->query("SELECT set_quarter,score_id,team1,team2 FROM tbl_score_match WHERE match_id='$match_id' ORDER BY score_id DESC");
     $score_id = mysqli_fetch_assoc($score_id);
 
@@ -21,7 +22,7 @@
     $set = mysqli_fetch_assoc($set);
 
     $tourna = $row['tourna_id'];
-    $tourna = $con->query("SELECT gm.name AS gamemode,s.name,s.img,gm.scoring FROM tbl_tournament AS t 
+    $tourna = $con->query("SELECT gm.name AS gamemode,s.name,s.img,gm.scoring,gm.sets FROM tbl_tournament AS t 
                             LEFT JOIN tbl_game_modes AS gm ON t.game_id=gm.game_id 
                             LEFT JOIN tbl_sports AS s ON gm.sport_id=s.sport_id
                             WHERE tourna_id='$tourna'");
@@ -35,22 +36,51 @@
     $team2 = $con->query("SELECT name,ass_desc,img_logo FROM tbl_team AS t LEFT JOIN tbl_association AS a ON t.ass_id=a.ass_id WHERE team_id='$team2'");
     $team2 = mysqli_fetch_assoc($team2);
 
-    $display = "none";
+$display = "none";
+$quarter = "";
+$team_a_display = 0;
+$team_b_display = 0;
 
-    if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
-        $display = "block";
-        $quarter = $score_id['set_quarter'];
+if(isset($score_id) && $score_id !== null && isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
+    $display = "block";
+    $quarter_num = intval($score_id['set_quarter']);
+    $regulation_sets = intval($tourna['sets']);
     
-        if($quarter == 1){
-            $quarter = "1st";
-        }else if($quarter == 2){
-            $quarter = "2nd";
-        }else if($quarter == 3){
-            $quarter = "3rd";
-        }else{
-            $quarter = $quarter."th";
+    // Helper function to display quarter/OT label
+    $getQuarterLabel = function($quarter_num, $regulation) {
+        if ($quarter_num <= $regulation) {
+            if ($quarter_num == 1) return "1st Quarter";
+            elseif ($quarter_num == 2) return "2nd Quarter";
+            elseif ($quarter_num == 3) return "3rd Quarter";
+            else return "4th Quarter";
+        } else {
+            $ot_num = $quarter_num - $regulation;
+            return ($ot_num === 1) ? "OT" : "OT" . $ot_num;
         }
+    };
+    
+    $quarter = $getQuarterLabel($quarter_num, $regulation_sets);
+    
+    // Check if in overtime with 0-0 score
+    if ($quarter_num > $regulation_sets && intval($score_id['team1']) == 0 && intval($score_id['team2']) == 0) {
+        // Get previous non-zero score from regulation quarters
+        $prev_sql = $con->query("SELECT team1, team2 FROM tbl_score_match 
+                                WHERE match_id='$match_id' 
+                                AND (team1 > 0 OR team2 > 0)
+                                ORDER BY score_id DESC LIMIT 1");
+        if ($prev_row = mysqli_fetch_assoc($prev_sql)) {
+            $team_a_display = intval($prev_row['team1']);
+            $team_b_display = intval($prev_row['team2']);
+        } else {
+            $team_a_display = 0;
+            $team_b_display = 0;
+        }
+    } else {
+        // Display current score
+        $team_a_display = intval($score_id['team1']);
+        $team_b_display = intval($score_id['team2']);
     }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -114,7 +144,7 @@
             align-items: center;
             justify-content: center;
             width: 100px;
-            height: 150px; /* Adjusted to make room for buttons */
+            height: 150px;
             margin: 10px;
             padding: 10px;
             background: #444444;
@@ -230,7 +260,6 @@
             border: 1px solid;
             box-shadow:1px 1px 1px 1px transparent;
         }
-        /* Firefox support */
         body {
             scrollbar-width: thin;
             scrollbar-color: #222222 black;
@@ -275,61 +304,49 @@
             flex-direction: column;
             padding: 15px;
         }
-
         .team, .scoreboard {
             width: 100%;
             margin-bottom: 20px;
         }
-
         .team h3 img {
             width: 60px;
             margin-right: 10px;
         }
-
         .player {
             width: 80px;
             height: 130px;
         }
-
         .player img {
             width: 50px;
             height: 50px;
         }
-
         .scoreboard .score {
             font-size: 2em;
         }
-
         .logs {
             height: auto;
             max-height: 300px;
         }
-
         .modal-content {
             width: 90vw;
             height: auto;
             padding: 20px;
         }
     }
-
     @media (max-width: 576px) {
         h1 {
             font-size: 1.8em;
         }
-
         .player p {
             font-size: 12px;
         }
-
         button {
             font-size: 0.9em;
             padding: 8px;
         }
-
         .scoreboard h3, .set-counter h3 {
             font-size: 1.5em;
         }
-
         .scoreboard .score {
             font-size: 1.8em;
         }
@@ -354,18 +371,18 @@
                 <button id="redoScore">🔄 Redo Score</button>
             <?php } ?>
             </div>
-            <div class="score"><?php echo (isset($score_id['team1'])) ? $score_id['team1']: 0 ?> - <?php echo (isset($score_id['team2'])) ? $score_id['team2']: 0 ?></div>
+            <div class="score"><?php echo $team_a_display ?> - <?php echo $team_b_display ?></div>
             <div class="set-counter" style="display:<?php echo $display ?>">
-                <?php if($tourna['scoring'] == 2){ ?>
-                    <h3>🏅 Sets</h3>
-                    <div class="set-score">
-                        <span id="teamA-set"><?php echo ($set['team1_wins'] != null) ? $set['team1_wins'] : 0; ?></span> - <span id="teamB-set"><?php echo ($set['team2_wins'] != null) ? $set['team2_wins'] : 0; ?></span>
-                    </div>
-                <?php }else{ ?>
-                    <h3>🏅 <span id="quarter_load"><?php echo $quarter ?></span> Quarter</h3>
-                    <a href="#" id="quarter_next">Next Quarter</a>
-                <?php } ?>
-            </div>
+    <?php if($tourna['scoring'] == 2){ ?>
+        <h3>🏅 Sets</h3>
+        <div class="set-score">
+            <span id="teamA-set"><?php echo ($set['team1_wins'] != null) ? $set['team1_wins'] : 0; ?></span> - <span id="teamB-set"><?php echo ($set['team2_wins'] != null) ? $set['team2_wins'] : 0; ?></span>
+        </div>
+    <?php }else{ ?>
+        <h3>🏅 <span id="quarter_load"><?php echo $quarter ?></span><?php echo (isset($score_id['set_quarter']) && intval($score_id['set_quarter']) <= intval($tourna['sets'])) ? "" : ""; ?></h3>
+        <a href="#" id="quarter_next">Next Quarter</a>
+    <?php } ?>
+</div>
             <div class="logs">
                 <strong>📜 Game Logs</strong>
                 <div id="logEntries">
@@ -392,9 +409,7 @@
             <span class="modal_icon"></span>
             <p class="modal_msg"></p>
             <div class="btns">
-                <button onclick="closeModal()">
-                    Okay
-                </button>
+                <button onclick="closeModal()">Okay</button>
             </div>
         </div>
     </div>
@@ -402,21 +417,41 @@
         <div style="background:#fff; padding:20px; border-radius:10px; min-width:300px; text-align:center;">
             <h2 style="color:#000;">A Player Scored!</h2>
             <p id="popup_player_name" style="color:#333;"></p>
-            <div id="score_table">
-            </div>
+            <div id="score_table"></div>
             <br>
             <button onclick="closeScorePopup()">Cancel</button>
         </div>
     </div>
     <script>
         let scoreHistory = [];
-        let teamAScore = <?php echo (isset($score_id['team1'])) ? $score_id['team1']: 0 ?>;
-        let teamBScore = <?php echo (isset($score_id['team2'])) ? $score_id['team2']: 0 ?>;
+        let teamAScore = <?php echo $team_a_display ?>;
+        let teamBScore = <?php echo $team_b_display ?>;
         let player = 0;
         let playing = [];
         let starts = <?php echo $row['status'] ?>;
         let scores_id = <?php echo (isset($score_id['score_id'])) ? $score_id['score_id']: 0 ?>;
         let scoring = <?php echo $tourna['scoring'] ?>;
+        let regulation_sets = <?php echo intval($tourna['sets']) ?>;
+
+        // Ensure modals are hidden on page load
+        $(document).ready(function(){
+            $("#score_popup").hide();
+            $("#modal_notify").hide();
+            window.currentScoringPlayer = null;
+        });
+
+        // Quarter label function
+function getQuarterLabel(quarter_num) {
+    if (quarter_num <= regulation_sets) {
+        if (quarter_num == 1) return "1st Quarter";
+        else if (quarter_num == 2) return "2nd Quarter";
+        else if (quarter_num == 3) return "3rd Quarter";
+        else return "4th Quarter";
+    } else {
+        let ot_num = quarter_num - regulation_sets;
+        return (ot_num === 1) ? "OT" : "OT" + ot_num;
+    }
+}
 
         $.get("../list.php?s=max_playing",function(res){
             if(res.status){
@@ -431,110 +466,111 @@
         })
         let draw = 0;
         $("#startGame").click(function(){
-            if(check_game()){
-                let element = $(this);
-                $.post("../action.php?a=start_match",{draw:draw},function(res){
+    if(check_game()){
+        let element = $(this);
+        $.post("../action.php?a=start_match",{draw:draw},function(res){
+            if(res.status){
+                $(".set-counter").show();
+
+                <?php if(!isset($score_id['set_quarter'])){ ?>
+                    $("#quarter_load").text("1st Quarter");
+                <?php } ?>
+
+                notify("The Game is started!","glyphicon glyphicon-exclamation-sign","",color="green")
+                logAction(`The Game is started!`);
+                element.parent().append(`<button id="redoScore">🔄 Redo Score</button>`);
+                element.remove();
+                starts=1;
+                scores_id = res.message;
+            }else{
+                draw++;
+                notify(res.message,"glyphicon glyphicon-exclamation-sign","",color="red")
+                $.get("../list.php?s=concluded",function(res){
                     if(res.status){
-                        $(".set-counter").show();
-
-                        <?php if(!isset($score_id['set_quarter'])){ ?>
-                            $("#quarter_load").text("1st");
-                        <?php } ?>
-
-                        notify("The Game is started!","glyphicon glyphicon-exclamation-sign","",color="green")
-                        logAction(`The Game is started!`);
-                        element.parent().append(`<button id="redoScore">🔄 Redo Score</button>`);
-                        element.remove();
-                        starts=1;
-                        scores_id = res.message;
-                    }else{
-                        draw++;
-                        notify(res.message,"glyphicon glyphicon-exclamation-sign","",color="red")
-                        $.get("../list.php?s=concluded",function(res){
-                            if(res.status){
-                                logAction(`Game was Concluded`);
-                                starts = 2;
-                                scores_id = 0;
-                                $.get("../scorer/back_end_match.php?a=matchmaking",function(e){
-                                    if(e.status){
-                                        setTimeout(() => {
-                                            if(confirm("Game Concluded, Close this Tab?")){
-                                                window.close();
-                                            }
-                                        }, 3000);
-                                    }
-                                });
+                        logAction(`Game is Concluded`);
+                        starts = 2;
+                        scores_id = 0;
+                        
+                        setTimeout(() => {
+                            // Reload the parent window (matchmaking.php) before closing this tab
+                            if(window.opener && !window.opener.closed){
+                                window.opener.location.reload();
                             }
-                        })
+                            // Close the current scoreboard tab
+                            window.close();
+                        }, 2000);
                     }
                 })
-            }else{
-                notify("Line up the first players","glyphicon glyphicon-warning-sign",`Fix the players InGame`,color="red")     
-                //setTimeout(() => {
-                    //if(confirm("Battle is one sided! desqualify if lack of player?")){
-                        //alert("jhahahha game over!");
-                    //}
-                //}, 5000);
             }
-        });
-
-        $("#quarter_next").click(function(){
-            let scoreDummy = {
-                    'team1':teamAScore,
-                    'team2':teamBScore
-                }
-            $.post("../action.php?a=quarter",{score:scoreDummy,score_id:scores_id},function(res){
-                console.log(res);
-                if(res.status){
-                    if(res.message == true){
-                        notify(`Game was Concluded!`,"glyphicon glyphicon-exclamation-sign",`Scores: ${teamAScore} - ${teamBScore}`,color="green");
-logAction(`Game was Concluded`);
-starts = 2;
-scores_id = 0;
-$.get("../scorer/back_end_match.php?a=matchmaking", function(res){
-    if(res.status){
-        // Wait for user to close the notification modal first
-        $("#modal_notify").slideDown(100);
-        $("#modal_notify button").off("click").on("click", function(){
-            closeModal(); // Close the modal
-            setTimeout(() => {
-                if(confirm("Game Concluded, Close this Tab?")){
-                    window.close();
-                }
-            }, 200); // slight delay after closing modal
-        });
+        })
+    }else{
+        notify("Line up the first players","glyphicon glyphicon-warning-sign",`Fix the players InGame`,color="red")     
     }
 });
 
-                    }else{
-                        scores_id = res.message.id;
-                        let quarter = res.message.quarter;
-                        
-                        if(quarter == 1){
-                            quarter = "1st";
-                        }else if(quarter == 2){
-                            quarter = "2nd";
-                        }else if(quarter == 3){
-                            quarter = "3rd";
-                        }else{
-                            quarter = quarter+"th";
-                        }
-                        
-                        if(res.message.quarter){
-                            $("#quarter_next").text("End Game");
-                        }else{
-                            $("#quarter_next").text("Next Quarter");
-                        }
-                        
-                        notify(`${quarter} Quarter Started!`,"glyphicon glyphicon-exclamation-sign",`Scores: ${teamAScore} - ${teamBScore}`,color="green")
-                        logAction(`${quarter} Quarter Started!`);
-
-                        $("#quarter_load").text(quarter);
-                        scoreHistory = [];
-                    }
+        // Add this after the quarter_next click handler
+$("#quarter_next").click(function(){
+    let scoreDummy = {
+        'team1':teamAScore,
+        'team2':teamBScore
+    }
+    $.post("../action.php?a=quarter",{score:scoreDummy,score_id:scores_id},function(res){
+        console.log(res);
+        if(res.status){
+            if(res.message == true){
+                handleGameConcluded();
+            }else{
+                scores_id = res.message.id;
+                let quarter = res.message.quarter;
+                let quarterLabel = getQuarterLabel(quarter);
+                
+                if(res.message.end){
+                    $("#quarter_next").text("End Game");
+                }else{
+                    $("#quarter_next").text("Next Quarter");
                 }
-            })
+                
+                notify(`${quarterLabel} Started!`,"glyphicon glyphicon-exclamation-sign",`Scores: ${teamAScore} - ${teamBScore}`,color="green")
+                logAction(`${quarterLabel} Started!`);
+                $("#quarter_load").text(quarterLabel);
+                scoreHistory = [];
+            }
+        }
+    })
+});
+
+// Add this new function to handle game conclusion
+function handleGameConcluded() {
+    notify(`Game is Concluded!`,"glyphicon glyphicon-exclamation-sign",`Scores: ${teamAScore} - ${teamBScore}`,color="green")
+    logAction(`Game is Concluded`);
+    starts = 2;
+    scores_id = 0;
+    
+    // Show modal with proper button handling
+    $("#modal_notify").slideDown(100);
+    $("#modal_notify button").off("click").on("click", function(){
+        closeModal();
+        setTimeout(() => {
+            // Reload the parent window (matchmaking.php) before closing this tab
+            if(window.opener && !window.opener.closed){
+                window.opener.location.reload();
+            }
+            // Close the current scoreboard tab
+            window.close();
+        }, 500);
+    });
+}
+// Add periodic check for game conclusion (every 2 seconds)
+let conclusionCheckInterval = setInterval(function(){
+    if(starts == 1 && scores_id > 0){
+        $.get("../list.php?s=concluded",function(res){
+            if(res.status){
+                clearInterval(conclusionCheckInterval);
+                handleGameConcluded();
+            }
         });
+    }
+}, 2000);
 
         function check_game(){
             const values = Object.values(playing);
@@ -569,8 +605,6 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
                 .hide();
 
             playerDiv.data('team', teamId);
-
-            
             $(`#${teamId} .players`).append(playerDiv);
 
             if(Ingame==0){
@@ -613,13 +647,11 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
                                 $(this).slideDown(300).fadeIn(300);
                                 attachRemoveClick($(this), teamId);
                                 attachAddScoreClick($(this), teamId);
-
                                 if(starts==1){
                                     logAction(`Moved [${playerDiv.find("span").text()}] ${playerDiv.find("p").text()}, back to play`);
                                 }else{
                                     logAction(`Moved [${playerDiv.find("span").text()}] ${playerDiv.find("p").text()}, as starting player`);
                                 }
-                                
                             });
                         });    
                     }
@@ -647,23 +679,16 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
                 playerDiv.find('.add-score-btn').off("click").on("click", function() {
                     if(starts == 1){
                         if(check_game()){
-                            // Save the current score before updating
                             scoreHistory.push({ teamA: teamAScore, teamB: teamBScore });
-
-                            // Store the current player & team for use in popup
                             window.currentScoringPlayer = {
                                 div: playerDiv,
                                 team: teamId
                             };
-
-                            // Show popup with player info
                             $("#popup_player_name").text(
                                 `[${playerDiv.find("span").text()}] ${playerDiv.find("p").text()}`
                             );
                             $("#score_popup").fadeIn(200);
-
                             $.post("../list.php?s=scoring_points",{game_id:<?= $row['game_id']?>},function(res){
-                                console.log(res)
                                 if(res.status){
                                     let div = $("#score_table");
                                     let buttons = "";
@@ -684,7 +709,6 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
                         notify(sentence,"glyphicon glyphicon-warning-sign",``,color="red")                   
                     }
             });
-           
         }
 
         function attachAddClick(playerDiv, teamId) {
@@ -692,10 +716,10 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
                 moveToPlayingField(playerDiv, teamId);
             });
         }
-        // Redo (Undo Last Score Change)
+        
         $(document).on("click","#redoScore", function() {
             if (scoreHistory.length > 0) {
-                let lastScore = scoreHistory.pop(); // Get last score
+                let lastScore = scoreHistory.pop();
                 teamAScore = lastScore.teamA;
                 teamBScore = lastScore.teamB;
                 let scoreDummy = {
@@ -703,7 +727,6 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
                     'team2':teamBScore
                 }
                 $.post("../action.php?a=redo_score",{score:scoreDummy,score_id:scores_id,history:scoreHistory},function(res){
-                    console.log(res)
                     if(res.status){
                         updateScore();
                         logAction("Redid the last score change.");
@@ -713,8 +736,8 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
                 logAction("No score to redo.");
             }
         });
+
         $.get("../list.php?s=get_players",function(res){
-            console.log(res)
             if(res.status){
                 playing = {
                     [res.data.teamId_A]: 0,
@@ -722,29 +745,14 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
                 };
                 for(let i=0; i < res.data.teamB.length; i++){
                     let data = res.data.teamB[i];
-                    const imageUrl = data.profile;
-                    const jerseyNumber = data.jersey_number;
-                    const teamId = res.data.teamId_B;
-                    const Ingame = data.ingame;
-                    const player_id = data.player_id;
-                    const fullname = data.fullname;
-                    addPlayer(teamId, imageUrl, jerseyNumber,Ingame,player_id,fullname);
+                    addPlayer(res.data.teamId_B, data.profile, data.jersey_number, data.ingame, data.player_id, data.fullname);
                 }
-
                 for(let i=0; i < res.data.teamA.length; i++){
                     let data = res.data.teamA[i];
-                    const imageUrl = data.profile;
-                    const jerseyNumber = data.jersey_number;
-                    const teamId = res.data.teamId_A;
-                    const Ingame = data.ingame;
-                    const player_id = data.player_id;
-                    const fullname = data.fullname;
-                    addPlayer(teamId, imageUrl, jerseyNumber,Ingame,player_id,fullname);
+                    addPlayer(res.data.teamId_A, data.profile, data.jersey_number, data.ingame, data.player_id, data.fullname);
                 }
             }
         });
-
-        let saved_icon = "";
 
         function notify(header,icon,msg,color="red"){
             $("#modal_notify").slideDown(100).find(".modal_head").text(header).css("color",color);
@@ -754,85 +762,76 @@ $.get("../scorer/back_end_match.php?a=matchmaking", function(res){
         function closeModal(){
             $('#modal_notify').slideUp(100);
         }
-        closeScorePopup();
         function closeScorePopup(){
             $("#score_popup").fadeOut(100);
             window.currentScoringPlayer = null;
         }
 
-        $(document).on("click",".choose-score", function(){
-            let chosenScore = parseInt($(this).data("score"));
-            let playerInfo = window.currentScoringPlayer;
+       $(document).on("click",".choose-score", function(){
+    let chosenScore = parseInt($(this).data("score"));
+    let playerInfo = window.currentScoringPlayer;
 
-            if(playerInfo){
-                let playerDiv = playerInfo.div;
-                let teamId = playerInfo.team;
+    if(playerInfo){
+        let playerDiv = playerInfo.div;
+        let teamId = playerInfo.team;
 
-                scoreHistory.push({ teamA: teamAScore, teamB: teamBScore });
+        scoreHistory.push({ teamA: teamAScore, teamB: teamBScore });
 
-                let whatTeam;
-                let scoreDummy = 0;
-                if (teamId === "<?php echo $row['team1'] ?>") {
-                    teamAScore += chosenScore;
-                    whatTeam = "team1";
-                    scoreDummy = teamAScore;
-                } else {
-                    teamBScore += chosenScore;
-                    whatTeam = "team2";
-                    scoreDummy = teamBScore;
-                }
-                $.post("../action.php?a=scoring",{score:scoreDummy,team:whatTeam,score_id:scores_id,history:scoreHistory},function(res){
+        let whatTeam;
+        if (teamId === "<?php echo $row['team1'] ?>") {
+            teamAScore += chosenScore;
+            whatTeam = "team1";
+        } else {
+            teamBScore += chosenScore;
+            whatTeam = "team2";
+        }
+        
+        // Send only the points added (chosenScore), not the total score
+        $.post("../action.php?a=scoring",{
+            score: chosenScore,
+            team: whatTeam,
+            score_id: scores_id,
+            history: scoreHistory
+        },function(res){
+            if(res.status){
+                updateScore();
+                $.post("../list.php?s=get_assoc",{teamId:teamId},function(res){
                     if(res.status){
-                        updateScore();
-                        $.post("../list.php?s=get_assoc",{teamId:teamId},function(res){
-                                        if(res.status){
-                                            logAction(`[${playerDiv.find("span").text()}] ${playerDiv.find("p").text()}, Scored ${chosenScore} point for ${res.data}`);
-                                        }
-                                    });
-                                    if(scoring==2){
-    $.post("../action.php?a=chk",{score:scoreDummy,team:whatTeam,score_id:scores_id},function(res){
-        if(res.status){
-            if(res.message.status == true){
-                notify("The Game Concluded","glyphicon glyphicon-exclamation-sign","Winner: "+res.message.winner,color="green")
-                logAction(`Game is Concluded`);
-                starts = 2;
-                scores_id = 0;
-
-                // Wait for modal close before showing confirm
-                $("#modal_notify").slideDown(100); // ensure modal is visible
-                $("#modal_notify button").off("click").on("click", function(){
-                    closeModal(); // close the modal
-                    setTimeout(() => {
-                        if(confirm("Game Concluded! Please close this tab.")){
-                            window.close(); // optional
-                        }
-                    }, 200); // slight delay to let modal finish closing
+                        logAction(`[${playerDiv.find("span").text()}] ${playerDiv.find("p").text()}, Scored ${chosenScore} point for ${res.data}`);
+                    }
                 });
-                                                }else{
-                                                    logAction(`New set Started!`);
-                                                    scores_id = res.message.id;
-                                                    scoreHistory = [];
-                                                    teamAScore = 0;
-                                                    teamBScore = 0;
-                                                    updateScore();
-                                                    $.get("../list.php?s=fetch_set",function(res){
-                                                        if(res.status){
-                                                            $("#teamA-set").text(res.data.team1_wins);
-                                                            $("#teamB-set").text(res.data.team2_wins);
-                                                            notify("New set Started!","glyphicon glyphicon-exclamation-sign",`${res.data.team1_wins} - ${res.data.team2_wins}`,color="green")
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        })
+                if(scoring==2){
+                    $.post("../action.php?a=chk",{
+                        score: (whatTeam === "team1") ? teamAScore : teamBScore,
+                        team: whatTeam,
+                        score_id: scores_id
+                    },function(res){
+                        if(res.status){
+                            if(res.message.status == true){
+                                handleGameConcluded();
+                            }else{
+                                logAction(`New set Started!`);
+                                scores_id = res.message.id;
+                                scoreHistory = [];
+                                teamAScore = 0;
+                                teamBScore = 0;
+                                updateScore();
+                                $.get("../list.php?s=fetch_set",function(res){
+                                    if(res.status){
+                                        $("#teamA-set").text(res.data.team1_wins);
+                                        $("#teamB-set").text(res.data.team2_wins);
+                                        notify("New set Started!","glyphicon glyphicon-exclamation-sign",`${res.data.team1_wins} - ${res.data.team2_wins}`,color="green")
                                     }
-                                }
-                            });
+                                });
+                            }
+                        }
+                    })
+                }
             }
-
-            closeScorePopup();
         });
-
+    }
+    closeScorePopup();
+});
     </script>
 </body>
 </html>
