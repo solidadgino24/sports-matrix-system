@@ -58,7 +58,7 @@
         ?>
             <div class="team_holder team_btn" title="Association: <?php echo $team['name'] ?>" team_id="<?php echo $team['team_id'] ?>">
                 <div class="team_header">
-                    <img src="data:image/png;base64,<?php echo $team['img_logo'] ?>" alt="">
+                    <img src="data:image/png;base64,<?php echo base64_encode($team['img_logo']) ?>" alt="">
                     <div>
                         <h3><?php echo $team['name'] ?></h3>
                         <p><?php echo $player['count'] ?> Player(s)</p>
