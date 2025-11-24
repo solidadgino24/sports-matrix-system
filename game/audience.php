@@ -13,7 +13,7 @@ $set = mysqli_fetch_assoc($set);
 
 // Fetch tournament info
 $tourna_id = $row['tourna_id'];
-$tourna = $con->query("SELECT gm.name AS gamemode,s.name,s.img,gm.scoring FROM tbl_tournament AS t 
+$tourna = $con->query("SELECT gm.name AS gamemode,s.name,s.img,gm.scoring,gm.sets FROM tbl_tournament AS t 
                         LEFT JOIN tbl_game_modes AS gm ON t.game_id=gm.game_id 
                         LEFT JOIN tbl_sports AS s ON gm.sport_id=s.sport_id
                         WHERE tourna_id='$tourna_id'");
@@ -36,20 +36,86 @@ $team2_logo = !empty($team2['img_logo']) ? base64_encode($team2['img_logo']) : b
 
 // Display quarter if score exists
 $display = "none";
+$quarter = "";
+$team_a_display = 0;
+$team_b_display = 0;
+
 if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
     $display = "block";
-    $quarter = $score_id['set_quarter'];
-    if($quarter == 1) $quarter = "1st";
-    else if($quarter == 2) $quarter = "2nd";
-    else if($quarter == 3) $quarter = "3rd";
-    else $quarter = $quarter."th";
+    $quarter_num = intval($score_id['set_quarter']);
+    $regulation_sets = intval($tourna['sets']);
+    
+    // Helper function to display quarter/OT label
+    $getQuarterLabel = function($quarter_num, $regulation) {
+        if ($quarter_num <= $regulation) {
+            if ($quarter_num == 1) return "1st Quarter";
+            elseif ($quarter_num == 2) return "2nd Quarter";
+            elseif ($quarter_num == 3) return "3rd Quarter";
+            else return "4th Quarter";
+        } else {
+            $ot_num = $quarter_num - $regulation;
+            return ($ot_num === 1) ? "OT" : "OT" . $ot_num;
+        }
+    };
+    
+    $quarter = $getQuarterLabel($quarter_num, $regulation_sets);
+    
+    // Handle overtime scoring logic
+    if ($quarter_num > $regulation_sets) {
+        $team_a_display = intval($score_id['team1']);
+        $team_b_display = intval($score_id['team2']);
+        
+        // If current OT scores are 0-0, get the last non-zero score
+        if ($team_a_display == 0 && $team_b_display == 0) {
+            $prev_sql = $con->query("SELECT team1, team2 FROM tbl_score_match 
+                                    WHERE match_id='$match_id' 
+                                    AND (team1 > 0 OR team2 > 0)
+                                    ORDER BY score_id DESC LIMIT 1");
+            if ($prev_row = mysqli_fetch_assoc($prev_sql)) {
+                $team_a_display = intval($prev_row['team1']);
+                $team_b_display = intval($prev_row['team2']);
+            }
+        } else {
+            // OT already has scores, add them to the baseline
+            $baseline_sql = $con->query("SELECT team1, team2 FROM tbl_score_match 
+                                       WHERE match_id='$match_id' 
+                                       AND (team1 > 0 OR team2 > 0)
+                                       ORDER BY score_id DESC LIMIT 1");
+            $baseline = mysqli_fetch_assoc($baseline_sql);
+            
+            if ($baseline) {
+                $baseline_team1 = intval($baseline['team1']);
+                $baseline_team2 = intval($baseline['team2']);
+                
+                // Get first score of current OT quarter
+                $ot_start_sql = $con->query("SELECT team1, team2 FROM tbl_score_match 
+                                           WHERE match_id='$match_id' 
+                                           AND set_quarter = '$quarter_num'
+                                           ORDER BY score_id ASC LIMIT 1");
+                if ($ot_start = mysqli_fetch_assoc($ot_start_sql)) {
+                    $ot_start_team1 = intval($ot_start['team1']);
+                    $ot_start_team2 = intval($ot_start['team2']);
+                    
+                    // If OT started with 0-0, add OT scores to baseline
+                    if ($ot_start_team1 == 0 && $ot_start_team2 == 0) {
+                        $team_a_display = $baseline_team1 + $team_a_display;
+                        $team_b_display = $baseline_team2 + $team_b_display;
+                    }
+                }
+            }
+        }
+    } else {
+        // Regulation quarters - display current score
+        $team_a_display = intval($score_id['team1']);
+        $team_b_display = intval($score_id['team2']);
+    }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport"	content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:image/png;base64,<?php echo $tourna_img ?>"/>
     <title><?php echo htmlspecialchars($tourna['name']) ?></title>
     <script src="../js/jquery.js"></script>
@@ -106,7 +172,7 @@ if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
             align-items: center;
             justify-content: center;
             width: 100px;
-            height: 150px; /* Adjusted to make room for buttons */
+            height: 150px;
             margin: 10px;
             padding: 10px;
             background: #444444;
@@ -222,7 +288,6 @@ if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
             border: 1px solid;
             box-shadow:1px 1px 1px 1px transparent;
         }
-        /* Firefox support */
         body {
             scrollbar-width: thin;
             scrollbar-color: #222222 black;
@@ -241,6 +306,7 @@ if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
             display: flex;
             justify-content: center;
             align-items: center;
+            z-index: 9999;
         }
         .modal-content{
             width: 40vw;
@@ -262,71 +328,58 @@ if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
             color:black;
             font-size:18px;
         }
-    @media (max-width: 992px) {
-        .dashboard {
-            flex-direction: column;
-            padding: 15px;
+        @media (max-width: 992px) {
+            .dashboard {
+                flex-direction: column;
+                padding: 15px;
+            }
+            .team, .scoreboard {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+            .team h3 img {
+                width: 60px;
+                margin-right: 10px;
+            }
+            .player {
+                width: 80px;
+                height: 130px;
+            }
+            .player img {
+                width: 50px;
+                height: 50px;
+            }
+            .scoreboard .score {
+                font-size: 2em;
+            }
+            .logs {
+                height: auto;
+                max-height: 300px;
+            }
+            .modal-content {
+                width: 90vw;
+                height: auto;
+                padding: 20px;
+            }
         }
-
-        .team, .scoreboard {
-            width: 100%;
-            margin-bottom: 20px;
+        @media (max-width: 576px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            .player p {
+                font-size: 12px;
+            }
+            button {
+                font-size: 0.9em;
+                padding: 8px;
+            }
+            .scoreboard h3, .set-counter h3 {
+                font-size: 1.5em;
+            }
+            .scoreboard .score {
+                font-size: 1.8em;
+            }
         }
-
-        .team h3 img {
-            width: 60px;
-            margin-right: 10px;
-        }
-
-        .player {
-            width: 80px;
-            height: 130px;
-        }
-
-        .player img {
-            width: 50px;
-            height: 50px;
-        }
-
-        .scoreboard .score {
-            font-size: 2em;
-        }
-
-        .logs {
-            height: auto;
-            max-height: 300px;
-        }
-
-        .modal-content {
-            width: 90vw;
-            height: auto;
-            padding: 20px;
-        }
-    }
-
-    @media (max-width: 576px) {
-        h1 {
-            font-size: 1.8em;
-        }
-
-        .player p {
-            font-size: 12px;
-        }
-
-        button {
-            font-size: 0.9em;
-            padding: 8px;
-        }
-
-        .scoreboard h3, .set-counter h3 {
-            font-size: 1.5em;
-        }
-
-        .scoreboard .score {
-            font-size: 1.8em;
-        }
-    }
-
     </style>
 </head>
 <body>
@@ -338,27 +391,45 @@ if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
                 <?php echo htmlspecialchars($team1['name']) ?>
             </h3>
             <div class="players" data-team="teamA"></div>
-            <div class="bench">
-                <?php 
-                $sql = $con->query("SELECT player_id,pr.profile,pr.fullname,ap.jersey_number FROM tbl_team_players p 
-                                    LEFT JOIN tbl_tourna_application AS ap ON p.app_id=ap.app_id 
-                                    LEFT JOIN tbl_profile AS pr ON ap.prof_id=pr.prof_id 
-                                    WHERE p.team_id='$team1id'");
-                while($player = mysqli_fetch_assoc($sql)){
-                    $player_img = !empty($player['profile']) ? base64_encode($player['profile']) : base64_encode(file_get_contents("../icons/ico.png"));
-                ?>
-                <div class="player" player-id="<?php echo $player['player_id'] ?>">
-                    <img src="data:image/png;base64,<?php echo $player_img ?>" alt="">
-                    <span><?php echo $player['jersey_number'] ?></span>
-                    <p><?php echo htmlspecialchars($player['fullname']) ?></p>
-                </div>
-                <?php } ?>
-            </div>
+<div class="bench">
+    <?php 
+    $sql = $con->query("SELECT player_id, pr.profile, pr.fullname, ap.jersey_number 
+                        FROM tbl_team_players p 
+                        LEFT JOIN tbl_tourna_application AS ap ON p.app_id=ap.app_id 
+                        LEFT JOIN tbl_profile AS pr ON ap.prof_id=pr.prof_id 
+                        WHERE p.team_id='$team1id'");
+    while($player = mysqli_fetch_assoc($sql)){
+        // Match the encoding from index.php
+        $player_img = '';
+        if (!empty($player['profile'])) {
+            // Check if it's already base64 encoded string or binary data
+            if (preg_match('/^[a-zA-Z0-9+\/]*={0,2}$/', $player['profile']) && strlen($player['profile']) % 4 == 0) {
+                // It's already base64
+                $player_img = $player['profile'];
+            } else {
+                // It's binary data, encode it
+                $player_img = base64_encode($player['profile']);
+            }
+        } else {
+            // Fallback to default image
+            if (file_exists("../icons/ico.png")) {
+                $default_img = file_get_contents("../icons/ico.png");
+                $player_img = base64_encode($default_img);
+            }
+        }
+    ?>
+    <div class="player" player-id="<?php echo $player['player_id'] ?>">
+        <img src="data:image/png;base64,<?php echo $player_img ?>" alt="">
+        <span><?php echo htmlspecialchars($player['jersey_number']) ?></span>
+        <p><?php echo htmlspecialchars($player['fullname']) ?></p>
+    </div>
+    <?php } ?>
+</div>
         </div>
 
         <div class="scoreboard">
             <h3>🏆 Scoreboard</h3>
-            <div class="score"><?php echo $score_id['team1'] ?? 0 ?> - <?php echo $score_id['team2'] ?? 0 ?></div>
+            <div class="score"><?php echo $team_a_display ?> - <?php echo $team_b_display ?></div>
             <div class="set-counter" style="display:<?php echo $display ?>">
                 <?php if($tourna['scoring'] == 2){ ?>
                     <h3>🏅 Sets</h3>
@@ -382,22 +453,41 @@ if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
                 <?php echo htmlspecialchars($team2['name']) ?>
             </h3>
             <div class="players" data-team="teamB"></div>
-            <div class="bench">
-                <?php 
-                $sql = $con->query("SELECT player_id,pr.profile,pr.fullname,ap.jersey_number FROM tbl_team_players p 
-                                    LEFT JOIN tbl_tourna_application AS ap ON p.app_id=ap.app_id 
-                                    LEFT JOIN tbl_profile AS pr ON ap.prof_id=pr.prof_id 
-                                    WHERE p.team_id='$team2id'");
-                while($player = mysqli_fetch_assoc($sql)){
-                    $player_img = !empty($player['profile']) ? base64_encode($player['profile']) : base64_encode(file_get_contents("../icons/ico.png"));
-                ?>
-                <div class="player" player-id="<?php echo $player['player_id'] ?>">
-                    <img src="data:image/png;base64,<?php echo $player_img ?>" alt="">
-                    <span><?php echo $player['jersey_number'] ?></span>
-                    <p><?php echo htmlspecialchars($player['fullname']) ?></p>
-                </div>
-                <?php } ?>
-            </div>
+
+<div class="bench">
+    <?php 
+    $sql = $con->query("SELECT player_id, pr.profile, pr.fullname, ap.jersey_number 
+                        FROM tbl_team_players p 
+                        LEFT JOIN tbl_tourna_application AS ap ON p.app_id=ap.app_id 
+                        LEFT JOIN tbl_profile AS pr ON ap.prof_id=pr.prof_id 
+                        WHERE p.team_id='$team2id'");
+    while($player = mysqli_fetch_assoc($sql)){
+        // Match the encoding from index.php
+        $player_img = '';
+        if (!empty($player['profile'])) {
+            // Check if it's already base64 encoded string or binary data
+            if (preg_match('/^[a-zA-Z0-9+\/]*={0,2}$/', $player['profile']) && strlen($player['profile']) % 4 == 0) {
+                // It's already base64
+                $player_img = $player['profile'];
+            } else {
+                // It's binary data, encode it
+                $player_img = base64_encode($player['profile']);
+            }
+        } else {
+            // Fallback to default image
+            if (file_exists("../icons/ico.png")) {
+                $default_img = file_get_contents("../icons/ico.png");
+                $player_img = base64_encode($default_img);
+            }
+        }
+    ?>
+    <div class="player" player-id="<?php echo $player['player_id'] ?>">
+        <img src="data:image/png;base64,<?php echo $player_img ?>" alt="">
+        <span><?php echo htmlspecialchars($player['jersey_number']) ?></span>
+        <p><?php echo htmlspecialchars($player['fullname']) ?></p>
+    </div>
+    <?php } ?>
+</div>
         </div>
     </div>
 
@@ -411,11 +501,25 @@ if(isset($score_id['set_quarter']) && $score_id['set_quarter'] != null){
             </div>
         </div>
     </div>
-
 <script>
 $(document).ready(function(){
     let match_id = <?php echo $match_id ?>;
+    let regulation_sets = <?php echo intval($tourna['sets']) ?>;
+    let lastTeam1Score = <?php echo $team_a_display ?>;
+    let lastTeam2Score = <?php echo $team_b_display ?>;
 
+    // Helper function to display quarter/OT label
+    function getQuarterLabel(quarter_num) {
+    if (quarter_num <= regulation_sets) {
+        if (quarter_num == 1) return "1st Quarter";
+        else if (quarter_num == 2) return "2nd Quarter";
+        else if (quarter_num == 3) return "3rd Quarter";
+        else return "4th Quarter";
+    } else {
+        let ot_num = quarter_num - regulation_sets;
+        return (ot_num === 1) ? "OT" : "OT" + ot_num;
+    }
+}
     function getlogs(){
         $.post("../list.php?s=logEntries",{id:match_id},function(res){
             if(res.status){
@@ -426,21 +530,28 @@ $(document).ready(function(){
         });
 
         $.get("../list.php?s=score_audience",function(res){
-            if(res.status){
-                $(".score").text(`${res.data.scores.team1} - ${res.data.scores.team2}`);
-                if(res.data.scoring==1){
-                    let quarter = res.data.scores.set_quarter;
-                    if(quarter == 1) quarter = "1st";
-                    else if(quarter == 2) quarter = "2nd";
-                    else if(quarter == 3) quarter = "3rd";
-                    else quarter = quarter+"th";
-                    $("#quarter_load").text(`${quarter} Quarter`);
-                }else{
-                    $(".set-score #teamA-set").text(res.data.sets.team1_wins ?? 0);
-                    $(".set-score #teamB-set").text(res.data.sets.team2_wins ?? 0);
-                }
-            }
-        });
+    if(res.status){
+        let team1Score = parseInt(res.data.scores.team1);
+        let team2Score = parseInt(res.data.scores.team2);
+        let quarterNum = parseInt(res.data.scores.set_quarter);
+        
+        // Update displayed scores
+        $(".score").text(`${team1Score} - ${team2Score}`);
+        
+        // Update quarter label
+        if(res.data.scoring == 1){
+            let quarterLabel = getQuarterLabel(quarterNum);
+            $("#quarter_load").text(quarterLabel);
+        }else{
+            $(".set-score #teamA-set").text(res.data.sets.team1_wins ?? 0);
+            $(".set-score #teamB-set").text(res.data.sets.team2_wins ?? 0);
+        }
+        
+        // Update last known scores
+        lastTeam1Score = team1Score;
+        lastTeam2Score = team2Score;
+    }
+});
 
         $.get("../list.php?s=ifConcluded",function(res){
             if(res.status){
@@ -468,7 +579,7 @@ $(document).ready(function(){
 
     getlogs();
     playerIngame();
-    let refresh = setInterval(()=>{ getlogs(); playerIngame(); },1500);
+    let refresh = setInterval(()=>{ getlogs(); playerIngame(); }, 1500);
 });
 
 function notify(header,icon,msg,color="red"){
@@ -477,7 +588,10 @@ function notify(header,icon,msg,color="red"){
     $(".modal_msg").text(msg);
     $(".btns > button").focus();
 }
-function closeModal(){ $('#modal_notify').slideUp(100); }
+
+function closeModal(){ 
+    $('#modal_notify').slideUp(100); 
+}
 </script>
 </body>
 </html>
