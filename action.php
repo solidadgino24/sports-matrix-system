@@ -650,8 +650,83 @@ if ($a == "game_log") {
     }
 }
 if ($a == "scoring") {
+    $match_id = $_COOKIE['match_id'];
     $history = json_encode($history);
-    $sql = "UPDATE tbl_score_match SET " . $team . "='$score',score_history='$history' WHERE score_id ='$score_id'";
+    
+    // Get current score record
+    $current_score = $con->query("SELECT set_quarter, team1, team2 FROM tbl_score_match WHERE score_id='$score_id'");
+    $current = mysqli_fetch_assoc($current_score);
+    $current_quarter = intval($current['set_quarter']);
+    $current_team1 = intval($current['team1']);
+    $current_team2 = intval($current['team2']);
+    
+    // Get tournament sets
+    $tourna = $con->query("SELECT gm.sets FROM tbl_matches AS m
+                           LEFT JOIN tbl_tournament AS t ON m.tourna_id=t.tourna_id
+                           LEFT JOIN tbl_game_modes AS gm ON t.game_id=gm.game_id
+                           WHERE m.match_id='$match_id'");
+    $tourna_data = mysqli_fetch_assoc($tourna);
+    $regulation_sets = intval($tourna_data['sets']);
+    
+    // Determine the new scores
+    $team1_new = $current_team1;
+    $team2_new = $current_team2;
+    
+    // Check if we're in overtime
+    if($current_quarter > $regulation_sets){
+        // Get the last non-zero score from regulation or previous OT quarters
+        $baseline_sql = $con->query("SELECT team1, team2 FROM tbl_score_match 
+                                    WHERE match_id='$match_id' 
+                                    AND (team1 > 0 OR team2 > 0)
+                                    ORDER BY score_id DESC LIMIT 1");
+        $baseline = mysqli_fetch_assoc($baseline_sql);
+        
+        if($baseline){
+            $baseline_team1 = intval($baseline['team1']);
+            $baseline_team2 = intval($baseline['team2']);
+            
+            // If current scores are 0-0 (OT just started), start from baseline
+            if($current_team1 == 0 && $current_team2 == 0){
+                if($team == 'team1'){
+                    $team1_new = $baseline_team1 + intval($score);
+                    $team2_new = $baseline_team2;
+                } else {
+                    $team1_new = $baseline_team1;
+                    $team2_new = $baseline_team2 + intval($score);
+                }
+            } else {
+                // OT already has scores, add to existing OT scores
+                if($team == 'team1'){
+                    $team1_new = $current_team1 + intval($score);
+                    $team2_new = $current_team2;
+                } else {
+                    $team1_new = $current_team1;
+                    $team2_new = $current_team2 + intval($score);
+                }
+            }
+        } else {
+            // Fallback: just add to current scores
+            if($team == 'team1'){
+                $team1_new = $current_team1 + intval($score);
+                $team2_new = $current_team2;
+            } else {
+                $team1_new = $current_team1;
+                $team2_new = $current_team2 + intval($score);
+            }
+        }
+    } else {
+        // Regular season (not overtime) - add to current scores
+        if($team == 'team1'){
+            $team1_new = $current_team1 + intval($score);
+            $team2_new = $current_team2;
+        } else {
+            $team1_new = $current_team1;
+            $team2_new = $current_team2 + intval($score);
+        }
+    }
+    
+    // Update score in database with both team scores
+    $sql = "UPDATE tbl_score_match SET team1='$team1_new', team2='$team2_new', score_history='$history' WHERE score_id='$score_id'";
     if ($con->query($sql)) {
         $status = true;
     }
@@ -717,7 +792,6 @@ if ($a == "chk") {
     }
 }
 
-
 if ($a == "quarter") {
     $match_id = $_COOKIE['match_id'];
     extract($_POST['score']);
@@ -738,18 +812,18 @@ if ($a == "quarter") {
         $regulation_sets = $sets;
         $team = null;
 
-        // Helper function to display quarter/OT label
-        $getQuarterLabel = function($quarter_num, $regulation) {
-            if ($quarter_num <= $regulation) {
-                if ($quarter_num == 1) return "1st";
-                elseif ($quarter_num == 2) return "2nd";
-                elseif ($quarter_num == 3) return "3rd";
-                else return "4th";
-            } else {
-                $ot_num = $quarter_num - $regulation;
-                return ($ot_num === 1) ? "OT" : "OT" . $ot_num;
-            }
-        };
+// Helper function to display quarter/OT label
+$getQuarterLabel = function($quarter_num, $regulation) {
+    if ($quarter_num <= $regulation) {
+        if ($quarter_num == 1) return "1st Quarter";
+        elseif ($quarter_num == 2) return "2nd Quarter";
+        elseif ($quarter_num == 3) return "3rd Quarter";
+        else return "4th Quarter";
+    } else {
+        $ot_num = $quarter_num - $regulation;
+        return ($ot_num === 1) ? "OT" : "OT" . $ot_num;
+    }
+};
 
         // If we are at or past regulation (e.g. 4th quarter) handle end-of-game or overtime
         if ($current_set >= $regulation_sets) {
