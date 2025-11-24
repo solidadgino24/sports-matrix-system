@@ -274,10 +274,72 @@ if($s=="score_audience"){
                         WHERE match_id='$match_id'");
     $set = mysqli_fetch_assoc($sql);
 
-    // Get latest score
+    // Get latest score with quarter info
     $sql = $con->query("SELECT set_quarter, team1, team2, winner FROM tbl_score_match 
                         WHERE match_id='$match_id' ORDER BY score_id DESC LIMIT 1");
     $score = mysqli_fetch_assoc($sql);
+    
+    // Handle overtime scoring logic
+    if($score){
+        $current_quarter = intval($score['set_quarter']);
+        $team1_score = intval($score['team1']);
+        $team2_score = intval($score['team2']);
+        
+        // Get tournament sets to determine regulation_sets
+        $tourna = $con->query("SELECT gm.sets 
+                               FROM tbl_matches AS m
+                               LEFT JOIN tbl_tournament AS t ON m.tourna_id=t.tourna_id
+                               LEFT JOIN tbl_game_modes AS gm ON t.game_id=gm.game_id
+                               WHERE m.match_id='$match_id'");
+        $tourna_data = mysqli_fetch_assoc($tourna);
+        $regulation_sets = intval($tourna_data['sets']);
+        
+        // If we're in overtime (current_quarter > regulation_sets)
+        if($current_quarter > $regulation_sets){
+            // Get the last score from the PREVIOUS quarter (regulation or previous OT)
+            $previous_quarter = $current_quarter - 1;
+            $previous_sql = $con->query("SELECT team1, team2 FROM tbl_score_match 
+                                        WHERE match_id='$match_id' 
+                                        AND set_quarter = '$previous_quarter'
+                                        ORDER BY score_id DESC LIMIT 1");
+            
+            if($previous_score = mysqli_fetch_assoc($previous_sql)){
+                $previous_team1 = intval($previous_score['team1']);
+                $previous_team2 = intval($previous_score['team2']);
+                
+                // If current OT scores are 0-0, use previous quarter as baseline
+                if($team1_score == 0 && $team2_score == 0){
+                    $score['team1'] = $previous_team1;
+                    $score['team2'] = $previous_team2;
+                } else {
+                    // Scores were added in current OT
+                    // Check if current OT started with 0-0
+                    $ot_start_sql = $con->query("SELECT team1, team2 FROM tbl_score_match 
+                                               WHERE match_id='$match_id' 
+                                               AND set_quarter = '$current_quarter'
+                                               ORDER BY score_id ASC LIMIT 1");
+                    if($ot_start = mysqli_fetch_assoc($ot_start_sql)){
+                        $ot_start_team1 = intval($ot_start['team1']);
+                        $ot_start_team2 = intval($ot_start['team2']);
+                        
+                        // If current OT started with 0-0, add OT scores to previous quarter baseline
+                        if($ot_start_team1 == 0 && $ot_start_team2 == 0){
+                            $score['team1'] = $previous_team1 + $team1_score;
+                            $score['team2'] = $previous_team2 + $team2_score;
+                        } else {
+                            // OT started with scores, use current as-is
+                            $score['team1'] = $team1_score;
+                            $score['team2'] = $team2_score;
+                        }
+                    }
+                }
+            } else {
+                // Fallback: use current scores if previous not found
+                $score['team1'] = $team1_score;
+                $score['team2'] = $team2_score;
+            }
+        }
+    }
 
     // Get scoring type
     $tourna = $con->query("SELECT gm.scoring 
@@ -300,7 +362,6 @@ if($s=="score_audience"){
     ];
     $status = true;
 }
-
 
 if($s == "ifConcluded"){
     $match_id = $_COOKIE['match_id'];
@@ -429,5 +490,6 @@ if($s=="scoring_points"){
         $data[] = 1;
     }
 }
+
 echo json_encode(array("data"=>$data,"status" => $status));
 ?>
