@@ -4,18 +4,18 @@
     $id = $_GET['id'];
     $sql = $con->query("SELECT * FROM tbl_association WHERE ass_id='$id'");
     $row = mysqli_fetch_assoc($sql);
-    $img = "data:image/png;base64,".$row['img_logo'];
+    $img = "data:image/png;base64,".base64_encode($row['img_logo']);
 ?>
 <div class="main">
     <div class="head">
-        <h2>Modify Association</h2>
+        <h2>Modify College</h2>
     </div>
     <div class="body">
         <div class="col-md-2 col-md-offset-3 preview">
             <img src="<?= $img?>" alt="">
         </div>
         <form action="#" id="mod_ass_form" class="col-md-4">
-            <h3>Association</h3>
+            <h3>College</h3>
             <div class="form-group">
                 <label for="name">Name</label>
                 <input type="text" name="name"  id="name" value="<?= $row['name'] ?>" class="form-control formrequire">
