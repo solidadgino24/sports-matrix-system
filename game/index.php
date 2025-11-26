@@ -487,7 +487,7 @@ function getQuarterLabel(quarter_num) {
                 notify(res.message,"glyphicon glyphicon-exclamation-sign","",color="red")
                 $.get("../list.php?s=concluded",function(res){
                     if(res.status){
-                        logAction(`Game is Concluded`);
+                        logAction(`Game was Concluded`);
                         starts = 2;
                         scores_id = 0;
                         
@@ -542,7 +542,7 @@ $("#quarter_next").click(function(){
 // Add this new function to handle game conclusion
 function handleGameConcluded() {
     notify(`Game is Concluded!`,"glyphicon glyphicon-exclamation-sign",`Scores: ${teamAScore} - ${teamBScore}`,color="green")
-    logAction(`Game is Concluded`);
+    logAction(`Game was Concluded`);
     starts = 2;
     scores_id = 0;
     
