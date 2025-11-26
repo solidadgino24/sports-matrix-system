@@ -8,7 +8,9 @@ function genRanNum($length) {
     return $result;
 }
 
-$con = mysqli_connect("localhost","root","","db_sports");
+//$con = mysqli_connect("localhost","root","","db_sports");
+
+$con = mysqli_connect("localhost","u719275046_db_sports","/N2WyT*k4M","u719275046_db_sports");
 if (mysqli_connect_errno()){
     echo "Failed to connect to MySQL: " . mysqli_connect_error();
     die();
