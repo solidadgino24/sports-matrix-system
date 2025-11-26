@@ -38,17 +38,6 @@ $sql = $con->query("SELECT sport_id, name FROM tbl_sports");
                 </select>
             </div>
 
-            <!-- <div class="form-group">
-                <label>Tournament Type</label>
-                <select name="tournament_type" id="tournament_type" class="form-control" required>
-                    <option value="" disabled selected>--Select Type--</option>
-                    <option value="Elimination">Elimination</option>
-                    <option value="Knockout">Knockout</option>
-                    <option value="Round Robin">Round Robin</option>
-                    <option value="League">League</option>
-                </select>
-            </div> -->
-
             <div class="form-group">
                 <label>Maximum Players</label>
                 <input type="number" name="max_player" class="form-control maximum" required>
@@ -59,20 +48,41 @@ $sql = $con->query("SELECT sport_id, name FROM tbl_sports");
                 <input type="number" name="min_player" class="form-control minimum" required>
             </div>
 
-            <!-- <div class="form-group">
-                <label>Auto Disqualify</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="auto_disqualify" value="1" required> Yes</label>
-                    <label><input type="radio" name="auto_disqualify" value="0" required> No</label>
-                </div>
-            </div> -->
-
             <button class="btn btn-success save_btn">
                 <span class="glyphicon glyphicon-save"></span> Add
             </button>
         </form>
     </div>
 </div>
+
+<script>
+// ----------------------------
+// FETCH GAME MODES BY SPORT ID
+// ----------------------------
+$("#sport").change(function () {
+    let sport_id = $(this).val();
+
+    $("#game_mode").html('<option disabled selected>Loading...</option>');
+
+    $.ajax({
+        url: "fetch_game_modes.php",
+        type: "POST",
+        data: { sport_id: sport_id },
+        success: function (data) {
+            $("#game_mode").html(data);
+        }
+    });
+});
+
+// Back button functionality
+$(".back_btn").click(function(){
+    $.get("tournament.php", function(e){
+        $(".content-main").remove();
+        $(".content").hide();
+        $(".content").html(`<div class="content-main">${e}</div>`).fadeIn(200);
+    });
+});
+</script>
 
 <style>
 .head {
@@ -84,7 +94,7 @@ $sql = $con->query("SELECT sport_id, name FROM tbl_sports");
 }
 .head .btn {
     border: none;
-    background-color: coral;
+    background-color: seagreen;
     color: #fff;
     font-weight: bold;
     padding: 8px 15px;
@@ -93,7 +103,7 @@ $sql = $con->query("SELECT sport_id, name FROM tbl_sports");
     transition: background 0.2s ease;
 }
 .head .btn:hover {
-    background-color: #e06b4d;
+    background-color: mediumseagreen;
 }
 
 .display-flexed {
@@ -155,7 +165,7 @@ $sql = $con->query("SELECT sport_id, name FROM tbl_sports");
 
 .save_btn {
     margin-top: 10px;
-    background-color: coral;
+    background-color: seagreen;
     border: none;
     color: #fff;
     padding: 8px 15px;
@@ -165,16 +175,6 @@ $sql = $con->query("SELECT sport_id, name FROM tbl_sports");
     transition: background 0.2s ease;
 }
 .save_btn:hover {
-    background-color: #e06b4d;
+    background-color: mediumseagreen;
 }
 </style>
-
-<script>
-$(".back_btn").click(function(){
-    $.get("tournament.php", function(e){
-        $(".content-main").remove();
-        $(".content").hide();
-        $(".content").html(`<div class="content-main">${e}</div>`).fadeIn(200);
-    });
-});
-</script>
