@@ -35,7 +35,7 @@
                 }else if($team['place']==3){
                     $place = "3rd Place";
                 }else if($team['place']==4){
-                    $place = "4rth Place";
+                    $place = "4th Place";
                 }else{
                     $place = $team['place']."th Place";
                 }
@@ -56,7 +56,7 @@
         <div class="record">
             <div class="team_data">
                     <div>
-                        <img src="data:image/png;base64,<?php echo $team['img_logo'] ?>" alt="">
+                        <img src="data:image/png;base64,<?php echo base64_encode($team['img_logo']) ?>" alt="">
                         <div>
                             <h3><?php echo $team['name'] ?></h3>
                             <p><?php echo $player['count'] ?> player's</p>
@@ -97,7 +97,7 @@
                         <p class="ptag">Start: <span><?php echo ($row['start_date'] != null) ? date('M j, Y h:i A', strtotime($row['start_date'])) : "" ?> </span>End: <span><?php echo ($row['end_date'] != null) ? date('M j, Y h:i A', strtotime($row['end_date'])) : "" ?></span></p>
                         <section class="col-md-5 team_holder left">
                             <h3>
-                                <img src="data:image/png;base64,<?php echo $team1['img_logo'] ?>" alt="" width="100px"> <?php echo $team1['name'] ?>
+                                <img src="data:image/png;base64,<?php echo base64_encode($team1['img_logo']) ?>" alt="" width="100px"> <?php echo $team1['name'] ?>
                                 <?php if($row['team1']==$row['winner']){ ?>
                                     <span class="win">Win</span>
                                 <?php } ?>
@@ -109,7 +109,7 @@
                         </section>
                         <section class="col-md-5 team_holder right">
                             <h3>
-                                <img src="data:image/png;base64,<?php echo $team2['img_logo'] ?>" alt="" width="100px"> <?php echo $team2['name'] ?>
+                                <img src="data:image/png;base64,<?php echo base64_encode($team2['img_logo']) ?>" alt="" width="100px"> <?php echo $team2['name'] ?>
                                 <?php if($row['team2']==$row['winner']){ ?>
                                     <span class="win">Win</span>
                                 <?php } ?>
