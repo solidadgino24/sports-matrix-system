@@ -294,20 +294,65 @@ $standings = $con->query("
 
             $teams = mysqli_fetch_all($standings, MYSQLI_ASSOC);
             if (!empty($teams)) {
-                // Sort by wins then losses
-                usort($teams,function($a,$b){return $b['wins']<=>$a['wins']?:$a['losses']<=>$b['losses'];});
-                $rankingTitle = "📊 Current Standings";
-                echo "<hr><div class='ranking-box'><h3 class='ranking-title'>{$rankingTitle}</h3><div class='ranking-list'>";
-                $rank=1;$prevWins=$prevLosses=null;$tieRank=1;
-                foreach ($teams as $t){
-                    $wins=(int)$t['wins'];$losses=(int)$t['losses'];
-                    if($prevWins===$wins && $prevLosses===$losses){}else{$tieRank=$rank;}
-                    $suffix="th";if(!in_array($tieRank%100,[11,12,13])){$last=$tieRank%10;if($last==1)$suffix="st";elseif($last==2)$suffix="nd";elseif($last==3)$suffix="rd";}
-                    $placement=($wins+$losses==0)?"No records yet":"{$tieRank}{$suffix} Place";$cls="other";
-                    echo "<div class='ranking-item {$cls}'><strong>{$placement}</strong><span>".htmlspecialchars($t['team_name'])." — {$wins}W / {$losses}L</span></div>";
-                    $prevWins=$wins;$prevLosses=$losses;$rank++;
-                }
-                echo "</div></div>";
+                // Sort teams by wins (desc) then losses (asc)
+usort($teams, function($a, $b) {
+    if ($b['wins'] == $a['wins']) return $a['losses'] <=> $b['losses'];
+    return $b['wins'] <=> $a['wins'];
+});
+
+// Determine final champion if tournament ended
+$finalChampionTeamId = null;
+if ($value['status'] == 2) {  // Tournament ended
+    $champQuery = $con->query("
+        SELECT winner 
+        FROM tbl_matches 
+        WHERE tourna_id = '$tourna_id' 
+        AND status = 2 
+        ORDER BY match_id DESC 
+        LIMIT 1
+    ");
+    $champRow = mysqli_fetch_assoc($champQuery);
+    if ($champRow) $finalChampionTeamId = $champRow['winner'];
+}
+
+echo "<hr><div class='ranking-box'><h3 class='ranking-title'>📊 Current Standings</h3><div class='ranking-list'>";
+
+$rank = 1;
+foreach ($teams as $t) {
+    $wins = (int)$t['wins'];
+    $losses = (int)$t['losses'];
+    $teamId = $t['team_id'];
+    $placeText = "";
+    $cls = "other";
+
+    if ($wins + $losses == 0) {
+        $placeText = "No records yet";
+    } else {
+        // Tournament already ended -> force only ONE champion
+        if ($value['status'] == 2 && $teamId == $finalChampionTeamId) {
+            $placeText = "<span style='color:green;font-weight:bold;'>Champion</span>";
+            $cls = "gold";
+        } else {
+            // regular ranking
+            $suffix = "th";
+            if (!in_array($rank % 100, [11, 12, 13])) {
+                $last = $rank % 10;
+                if ($last == 1) $suffix = "st";
+                elseif ($last == 2) $suffix = "nd";
+                elseif ($last == 3) $suffix = "rd";
+            }
+            $placeText = "{$rank}{$suffix} Place";
+        }
+    }
+
+    echo "<div class='ranking-item {$cls}'><strong>{$placeText}</strong>
+          <span>".htmlspecialchars($t['team_name'])." — {$wins}W / {$losses}L</span></div>";
+
+    $rank++;
+}
+
+echo "</div></div>";
+
             } else { echo "<p style='color:#777;font-size:14px;'>No standings available yet.</p>"; }
         }
 
