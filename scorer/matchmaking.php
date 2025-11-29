@@ -114,35 +114,44 @@ $recent_match = $con->query("
                     $team2_score = $score['team2'] ?? 0;
             ?>
                 <li>
-                    <div class="col-md-12">
-                        <p class="ptag">
-                            Start: <span><?php echo ($row['start_date']) ? date('M j, Y h:i A', strtotime($row['start_date'])) : ""; ?></span> 
-                            End: <span><?php echo ($row['end_date']) ? date('M j, Y h:i A', strtotime($row['end_date'])) : ""; ?></span>
-                        </p>
+    <div class="col-md-12">
+        <p class="ptag">
+            Start: <span><?php echo ($row['start_date']) ? date('M j, Y h:i A', strtotime($row['start_date'])) : ""; ?></span> 
+            End: <span><?php echo ($row['end_date']) ? date('M j, Y h:i A', strtotime($row['end_date'])) : ""; ?></span>
+        </p>
 
-                        <section class="col-md-5 team_holder left">
-                            <h3>
-                                <img src="data:image/png;base64,<?php echo base64_encode($row['team1_logo']); ?>" width="100">
-                                <?php echo $row['team1_name']; ?>
-                                <?php if ($row['team1'] == $row['winner']) { ?><span class="win">Win</span><?php } ?>
-                            </h3>
-                        </section>
+        <section class="col-md-5 team_holder left">
+            <h3>
+                <img src="data:image/png;base64,<?php echo base64_encode($row['team1_logo']); ?>" width="100">
+                <?php echo $row['team1_name']; ?>
+                <?php if ($row['team1'] == $row['winner']) { ?><span class="win">Win</span><?php } ?>
+            </h3>
+        </section>
 
-                        <section class="col-md-2">
-                            <h1>VS</h1>
-                            <h3><?php echo $team1_score . " - " . $team2_score; ?></h3>
-                        </section>
+        <section class="col-md-2">
+            <h1>VS</h1>
+            <h3><?php echo $team1_score . " - " . $team2_score; ?></h3>
 
-                        <section class="col-md-5 team_holder right">
-                            <h3>
-                                <img src="data:image/png;base64,<?php echo base64_encode($row['team2_logo']); ?>" width="100">
-                                <?php echo $row['team2_name']; ?>
-                                <?php if ($row['team2'] == $row['winner']) { ?><span class="win">Win</span><?php } ?>
-                            </h3>
-                        </section>
-                    </div>
-                    <div class="clearfix"></div>
-                </li>
+            <?php if ($row['status'] == 2) { ?>
+            <button class="btn btn-danger deleteMatch"
+                data-id="<?php echo $row['match_id']; ?>"
+                style="margin-top:10px; padding:5px 10px;">
+                Delete
+            </button>
+            <?php } ?>
+        </section>
+
+        <section class="col-md-5 team_holder right">
+            <h3>
+                <img src="data:image/png;base64,<?php echo base64_encode($row['team2_logo']); ?>" width="100">
+                <?php echo $row['team2_name']; ?>
+                <?php if ($row['team2'] == $row['winner']) { ?><span class="win">Win</span><?php } ?>
+            </h3>
+        </section>
+    </div>
+    <div class="clearfix"></div>
+</li>
+
             <?php } ?>
             </ul>
         </div>
@@ -293,6 +302,21 @@ document.getElementById("saveMatch").onclick = function() {
         if (d.status) location.reload();
     });
 };
+// DELETE MATCH
+document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("deleteMatch")) {
+        let id = e.target.dataset.id;
+
+        if (!confirm("Delete this concluded match? This action cannot be undone.")) return;
+
+        fetch("back_end_match.php?a=delete_match&match_id=" + id)
+        .then(res => res.json())
+        .then(d => {
+            alert(d.message);
+            if (d.status) location.reload();
+        });
+    }
+});
 
 // END TOURNAMENT
 document.querySelector(".end_tourna")?.addEventListener("click", function () {
