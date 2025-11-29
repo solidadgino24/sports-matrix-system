@@ -315,27 +315,52 @@ if ($value['status'] == 2) {  // Tournament ended
     if ($champRow) $finalChampionTeamId = $champRow['winner'];
 }
 
-echo "<hr><div class='ranking-box'><h3 class='ranking-title'>📊 Current Standings</h3><div class='ranking-list'>";
+echo "<hr><div class='ranking-box'>";
+
+if ($value['status'] == 2) {
+    echo "<h3 class='ranking-title'>🏆 Final Rankings</h3>";
+} else {
+    echo "<h3 class='ranking-title'>📊 Current Standings</h3>";
+}
+
+echo "<div class='ranking-list'>";
 
 $rank = 1;
 foreach ($teams as $t) {
     $wins = (int)$t['wins'];
     $losses = (int)$t['losses'];
     $teamId = $t['team_id'];
-    $placeText = "";
+    
+    // DEFAULT CSS CLASS
     $cls = "other";
+    $placeText = "";
 
-    if ($wins + $losses == 0) {
-        $placeText = "No records yet";
-    } else {
-        // Tournament already ended -> force only ONE champion
-        if ($value['status'] == 2 && $teamId == $finalChampionTeamId) {
-            $placeText = "<span style='color:green;font-weight:bold;'>Champion</span>";
+    if ($value['status'] == 2) {
+        // TOURNAMENT ENDED = FORCE TOP 4 TITLES
+        if ($rank == 1) {
+            $placeText = "🏆 Champion";
             $cls = "gold";
+        } elseif ($rank == 2) {
+            $placeText = "🥈 1st Runner Up";
+            $cls = "silver";
+        } elseif ($rank == 3) {
+            $placeText = "🥉 2nd Runner Up";
+            $cls = "bronze";
+        } elseif ($rank == 4) {
+            $placeText = "4th Place (3rd Runner Up)";
+            $cls = "other";
         } else {
-            // regular ranking
+            $placeText = "{$rank}th Place";
+        }
+
+    } else {
+        // TOURNAMENT NOT ENDED = CURRENT STANDINGS
+        if ($wins + $losses == 0) {
+            $placeText = "No records yet";
+        } else {
+            // NORMAL RANKING (1st, 2nd, 3rd…)
             $suffix = "th";
-            if (!in_array($rank % 100, [11, 12, 13])) {
+            if (!in_array($rank % 100, [11,12,13])) {
                 $last = $rank % 10;
                 if ($last == 1) $suffix = "st";
                 elseif ($last == 2) $suffix = "nd";
@@ -345,8 +370,10 @@ foreach ($teams as $t) {
         }
     }
 
-    echo "<div class='ranking-item {$cls}'><strong>{$placeText}</strong>
-          <span>".htmlspecialchars($t['team_name'])." — {$wins}W / {$losses}L</span></div>";
+    echo "<div class='ranking-item {$cls}'>
+            <strong>{$placeText}</strong>
+            <span>".htmlspecialchars($t['team_name'])." — {$wins}W / {$losses}L</span>
+          </div>";
 
     $rank++;
 }
