@@ -65,6 +65,42 @@ if ($a == "create_manual") {
     echo json_encode(['status'=>true,'message'=>"Match successfully created."]);
     exit;
 }
+// --------------------------------------------
+// DELETE MATCH (ENDED ONLY)
+// --------------------------------------------
+if ($a == "delete_match") {
+    $match_id = $_GET['match_id'] ?? 0;
+    $id = $_SESSION['tournament_code'];
+
+    // Check match exists and is ended
+    $check = $con->query("SELECT * FROM tbl_matches WHERE match_id='$match_id' AND tourna_id='$id'");
+    $match = mysqli_fetch_assoc($check);
+
+    if (!$match) {
+        echo json_encode(['status'=>false,'message'=>"Match not found."]);
+        exit;
+    }
+
+    if ($match['status'] != 2) {
+        echo json_encode(['status'=>false,'message'=>"You can only delete concluded (ended) matches."]);
+        exit;
+    }
+
+    $team1 = $match['team1'];
+    $team2 = $match['team2'];
+
+    // Delete scores
+    $con->query("DELETE FROM tbl_score_match WHERE match_id='$match_id'");
+
+    // Delete match
+    $con->query("DELETE FROM tbl_matches WHERE match_id='$match_id'");
+
+    // Free teams
+    $con->query("UPDATE tbl_team SET inMatch='0' WHERE team_id IN ('$team1', '$team2')");
+
+    echo json_encode(['status'=>true,'message'=>"Match deleted successfully."]);
+    exit;
+}
 
 // --------------------------------------------
 // END TOURNAMENT
