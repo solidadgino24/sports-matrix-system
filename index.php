@@ -430,16 +430,131 @@ $(function(){
   });
 });
 
-<?php if($event && $event['ev_remarks']!=0): ?>
-const ctx = document.getElementById('medalChart').getContext('2d');
-$.get("list.php?s=medals",function(res){
-    if(res.status && Array.isArray(res.data)){
-        const labels=[],goldData=[],silverData=[],bronzeData=[];
-        res.data.forEach(item=>{labels.push(item.name);goldData.push(item.medals.gold);silverData.push(item.medals.silver);bronzeData.push(item.medals.bronze);});
-        new Chart(ctx,{type:'bar',data:{labels:labels,datasets:[{label:'🥇 Gold',data:goldData,backgroundColor:'#f1c40f',borderRadius:8,barThickness:25},{label:'🥈 Silver',data:silverData,backgroundColor:'#bdc3c7',borderRadius:8,barThickness:25},{label:'🥉 Bronze',data:bronzeData,backgroundColor:'#e67e22',borderRadius:8,barThickness:25}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyle:'rectRounded',padding:10,font:{size:window.innerWidth<480?10:13,weight:'bold'}}},tooltip:{backgroundColor:'#333',titleColor:'#fff',bodyColor:'#fff',borderColor:'#fff',borderWidth:1,padding:10,cornerRadius:6,callbacks:{label:function(context){return `${context.dataset.label}: ${Math.round(context.parsed.y)}`;}}}}},scales:{x:{grid:{display:false},ticks:{font:{size:window.innerWidth<480?9:12,weight:'600'},maxRotation:45,minRotation:0}},y:{beginAtZero:true,grid:{color:'#eee',borderDash:[5,5]},title:{display:true,text:'No. of Events Won',font:{size:window.innerWidth<480?11:14}},ticks:{stepSize:1,callback:function(value){return value%1===0?value:'';}}}}}});
-    } else console.warn("No medal data found or invalid response.");
-});
-<?php endif; ?>
+<?php 
+        if($event && $event['ev_remarks'] != 0){
+    ?>
+        const ctx = document.getElementById('medalChart').getContext('2d');
+            $.get("list.php?s=medals", function(res) {
+                console.log(res)
+                if (res.status && Array.isArray(res.data)) {
+                    const labels = [];
+                    const goldData = [];
+                    const silverData = [];
+                    const bronzeData = [];
+            
+                    res.data.forEach(item => {
+                        labels.push(item.name);
+                        goldData.push(item.medals.gold);
+                        silverData.push(item.medals.silver);
+                        bronzeData.push(item.medals.bronze);
+                    });
+            
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: '🥇 Gold',
+                                    data: goldData,
+                                    backgroundColor: '#f1c40f',
+                                    borderRadius: 8,
+                                    barThickness: 25
+                                },
+                                {
+                                    label: '🥈 Silver',
+                                    data: silverData,
+                                    backgroundColor: '#bdc3c7',
+                                    borderRadius: 8,
+                                    barThickness: 25
+                                },
+                                {
+                                    label: '🥉 Bronze',
+                                    data: bronzeData,
+                                    backgroundColor: '#e67e22',
+                                    borderRadius: 8,
+                                    barThickness: 25
+                                }
+                            ]
+                        },
+                        options: {
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: {
+    mode: 'index',
+    intersect: false
+  },
+  plugins: {
+    legend: {
+      position: 'top',
+      labels: {
+        usePointStyle: true,
+        pointStyle: 'rectRounded',
+        padding: 10,
+        font: {
+          size: window.innerWidth < 480 ? 10 : 13,
+          weight: 'bold'
+        }
+      }
+    },
+    tooltip: {
+      backgroundColor: '#333',
+      titleColor: '#fff',
+      bodyColor: '#fff',
+      borderColor: '#fff',
+      borderWidth: 1,
+      padding: 10,
+      cornerRadius: 6,
+      callbacks: {
+        label: function(context) {
+          return `${context.dataset.label}: ${Math.round(context.parsed.y)}`;
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: {
+        font: {
+          size: window.innerWidth < 480 ? 9 : 12,
+          weight: '600'
+        },
+        maxRotation: 45,
+        minRotation: 0
+      }
+    },
+    y: {
+      beginAtZero: true,
+      grid: {
+        color: '#eee',
+        borderDash: [5, 5]
+      },
+      title: {
+        display: true,
+        text: 'No. of Events Won',
+        font: {
+          size: window.innerWidth < 480 ? 11 : 14
+        }
+      },
+      ticks: {
+        stepSize: 1,
+        callback: function(value) {
+          return value % 1 === 0 ? value : '';
+        }
+      }
+    }
+  }
+}
+
+                    });
+                } else {
+                    console.warn("No medal data found or invalid response.");
+                }
+            });
+    <?php
+        }
+    ?>
 </script>
 </body>
 </html>
