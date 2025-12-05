@@ -373,10 +373,22 @@ if($s == "ifConcluded"){
     }
 }
 if($s=="medals"){
-    $ev_id = $_SESSION['ev_id'];
+    $ev_id = $_SESSION['ev_id'] ?? null;
+
+    if ($ev_id === null) {
+        echo json_encode([
+            "data" => [],
+            "status" => false,
+            "error" => "ev_id_not_set"
+        ]);
+        exit;
+    }
 
     $sql = $con->query("SELECT name, ass_id FROM tbl_association");
+    $data = [];
+
     while ($row = mysqli_fetch_assoc($sql)) {
+
         $association = [
             "name" => $row['name'],
             "medals" => [
@@ -386,32 +398,30 @@ if($s=="medals"){
             ]
         ];
 
-        $id = $row['ass_id'];
+        $ass_id = $row['ass_id'];
 
-        $team = $con->query("
-            SELECT * 
-            FROM tbl_team t 
-            LEFT JOIN tbl_tournament AS tn ON t.tourna_id = tn.tourna_id 
-            WHERE ass_id = '$id' AND tn.ev_id = '$ev_id'
+        // Only count medals from tournaments that ended (status = 2)
+        $teamQuery = $con->query("
+            SELECT t.place
+            FROM tbl_team t
+            LEFT JOIN tbl_tournament tn ON t.tourna_id = tn.tourna_id
+            WHERE t.ass_id = '$ass_id' AND tn.ev_id = '$ev_id' AND tn.status = 2
         ");
 
-        while ($teamRow = mysqli_fetch_assoc($team)) {
-            if($teamRow['place'] != null){
-                if ($teamRow['place'] == 0) {
-                    $association['medals']['gold']++;
-                } elseif ($teamRow['place'] == 1) {
-                    $association['medals']['silver']++;
-                } elseif ($teamRow['place'] == 2) {
-                    $association['medals']['bronze']++;
-                }
+        while ($tm = mysqli_fetch_assoc($teamQuery)) {
+            if ($tm['place'] !== null) {
+                if ($tm['place'] == 0) $association['medals']['gold']++;
+                if ($tm['place'] == 1) $association['medals']['silver']++;
+                if ($tm['place'] == 2) $association['medals']['bronze']++;
             }
         }
 
         $data[] = $association;
-        $status = true;
     }
 
+    $status = true;
 }
+
 
 if($s=="medals_by_assoc"){
     $ev_id = $_SESSION['ev_id'];
