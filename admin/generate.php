@@ -21,20 +21,11 @@ while($r = $res->fetch_assoc()){
     $associations[(int)$r['ass_id']] = $r['name'];
 }
 
-// Prepare tournaments list for this event
-$tq = $con->prepare("
-    SELECT t.tourna_id, t.status, gm.players, s.name AS sport_name, gmc.category
-    FROM tbl_tournament t
-    LEFT JOIN tbl_game_modes gm ON t.game_id = gm.game_id
-    LEFT JOIN tbl_sports s ON gm.sport_id = s.sport_id
-    LEFT JOIN tbl_game_mode_cat gmc ON gm.gm_cat_id = gmc.gm_cat_id
-    WHERE t.ev_id = ?
-    ORDER BY s.name, gmc.category
-");
+// Tournaments
+$tq = $con->prepare("\n    SELECT t.tourna_id, t.status, gm.players, s.name AS sport_name, gmc.category\n    FROM tbl_tournament t\n    LEFT JOIN tbl_game_modes gm ON t.game_id = gm.game_id\n    LEFT JOIN tbl_sports s ON gm.sport_id = s.sport_id\n    LEFT JOIN tbl_game_mode_cat gmc ON gm.gm_cat_id = gmc.gm_cat_id\n    WHERE t.ev_id = ?\n    ORDER BY s.name, gmc.category\n");
 $tq->bind_param("i", $ev_id);
 $tq->execute();
 $tournaments = $tq->get_result()->fetch_all(MYSQLI_ASSOC);
-$tq->close();
 
 // --- Medal aggregation (only count teams from tournaments that ended status = 2) ---
 // Initialize overall medals map
