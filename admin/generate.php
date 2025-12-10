@@ -117,7 +117,6 @@ function set_label($n){
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-/* (kept your styles unchanged) */
 body { font-family: "Times New Roman", Georgia, serif; background:#f5f5f5; margin:0; padding:0; }
 .report-wrapper { width:100%; margin:0; padding:10px 10px; }
 .report-card { background:#fff; padding:20px; border:1px solid #ddd; margin-bottom:25px; box-sizing:border-box; border-radius:6px; }
@@ -132,6 +131,40 @@ body { font-family: "Times New Roman", Georgia, serif; background:#f5f5f5; margi
 .no-print {}
 @media (max-width: 768px) { .meta-row div { width:100%; margin-bottom:8px; font-size:13px; } .report-card { padding:14px; } .report-title { font-size:18px; } .report-sub { font-size:14px; } .table-formal th, .table-formal td { font-size:12px; padding:5px; } .section-controls { justify-content:center; } }
 @media print { body { background:#fff; padding:0; margin:0; } .no-print { display:none !important; } .report-wrapper { padding:0; margin:0; width:100%; } .report-card { border:none; box-shadow:none; padding:0 0 12px 0; margin:0 0 20px 0; } @page { size:A4; margin:10mm; } }
+/* Scroll to Top Button */
+#scrollTopBtn {
+    display: none;
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    z-index: 9999;
+    font-size: 20px;
+    border: none;
+    background: #27ae60;
+    color: #fff;
+    cursor: pointer;
+    padding: 12px 16px;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    transition: all 0.3s ease;
+    font-weight: bold;
+}
+
+#scrollTopBtn:hover {
+    background: #229954;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+#scrollTopBtn:active {
+    transform: translateY(-1px);
+}
+
+@media print {
+    #scrollTopBtn {
+        display: none !important;
+    }
+}
 </style>
 </head>
 <body>
