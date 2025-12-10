@@ -384,44 +384,68 @@ if($s=="medals"){
         exit;
     }
 
-    $sql = $con->query("SELECT name, ass_id FROM tbl_association");
+    $sql = $con->query("SELECT ass_id, name FROM tbl_association");
     $data = [];
 
     while ($row = mysqli_fetch_assoc($sql)) {
-
+        $ass_id = $row['ass_id'];
         $association = [
             "name" => $row['name'],
             "medals" => [
                 "gold" => 0,
                 "silver" => 0,
-                "bronze" => 0,
+                "bronze" => 0
             ]
         ];
 
-        $ass_id = $row['ass_id'];
-
-        // Only count medals from tournaments that ended (status = 2)
-        $teamQuery = $con->query("
-            SELECT t.place
-            FROM tbl_team t
-            LEFT JOIN tbl_tournament tn ON t.tourna_id = tn.tourna_id
-            WHERE t.ass_id = '$ass_id' AND tn.ev_id = '$ev_id' AND tn.status = 2
+        // Get all tournaments that ended
+        $tournaQuery = $con->query("
+            SELECT t.tourna_id
+            FROM tbl_tournament t
+            WHERE t.ev_id = '$ev_id' AND t.status = 2
         ");
 
-        while ($tm = mysqli_fetch_assoc($teamQuery)) {
-            if ($tm['place'] !== null) {
-                if ($tm['place'] == 0) $association['medals']['gold']++;
-                if ($tm['place'] == 1) $association['medals']['silver']++;
-                if ($tm['place'] == 2) $association['medals']['bronze']++;
+        while ($tourna = mysqli_fetch_assoc($tournaQuery)) {
+            $tourna_id = $tourna['tourna_id'];
+
+            // Get all teams in this tournament
+            $teamsQuery = $con->query("
+                SELECT t.team_id, t.ass_id,
+                    SUM(CASE WHEN m.winner = t.team_id THEN 1 ELSE 0 END) AS wins,
+                    SUM(CASE WHEN m.winner IS NOT NULL AND m.winner != t.team_id THEN 1 ELSE 0 END) AS losses
+                FROM tbl_team t
+                LEFT JOIN tbl_matches m ON t.team_id IN (m.team1, m.team2)
+                WHERE t.tourna_id = '$tourna_id'
+                GROUP BY t.team_id
+            ");
+
+            $teams = mysqli_fetch_all($teamsQuery, MYSQLI_ASSOC);
+
+            // Sort by wins DESC, losses ASC
+            usort($teams, function($a,$b){
+                if($b['wins']==$a['wins']) return $a['losses'] <=> $b['losses'];
+                return $b['wins'] <=> $a['wins'];
+            });
+
+            // Assign medals
+            foreach($teams as $rank => $team){
+                if($team['ass_id'] != $ass_id) continue;
+
+                if($rank == 0) $association['medals']['gold']++;
+                elseif($rank == 1) $association['medals']['silver']++;
+                elseif($rank == 2) $association['medals']['bronze']++;
             }
         }
 
         $data[] = $association;
     }
 
-    $status = true;
+    echo json_encode([
+        "status" => true,
+        "data" => $data
+    ]);
+    exit;
 }
-
 
 if($s=="medals_by_assoc"){
     $ev_id = $_SESSION['ev_id'];
