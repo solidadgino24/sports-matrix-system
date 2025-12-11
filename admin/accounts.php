@@ -54,13 +54,12 @@
         <div class="card-body table-responsive">
           <?php 
             $sql = $con->query("
-    SELECT p.fullname, u.user_id 
-    FROM tbl_profile_ass AS p
-    LEFT JOIN tbl_user AS u ON p.user_id = u.user_id
+    SELECT u.user_id, p.fullname
+    FROM tbl_user AS u
+    LEFT JOIN tbl_profile_ass AS p ON p.user_id = u.user_id
     WHERE u.status = '0' 
     AND (u.user_type = '2' OR u.user_type = '4')
 ");
-
             if(mysqli_num_rows($sql) > 0){
           ?>
           <table class="table table-sm table-hover verification-table align-middle">
