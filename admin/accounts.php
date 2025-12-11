@@ -58,7 +58,7 @@
     FROM tbl_profile_ass AS p
     LEFT JOIN tbl_user AS u ON p.user_id = u.user_id
     WHERE u.status = '0' 
-      AND u.user_type IN ('3','4')
+    AND (u.user_type = '2' OR u.user_type = '4')
 ");
 
             if(mysqli_num_rows($sql) > 0){
