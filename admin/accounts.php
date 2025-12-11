@@ -23,13 +23,13 @@
             </thead>
             <tbody>
               <?php 
-                $sql = $con->query("SELECT u.user_id,u.username,p.fullname,ut.type,s.name 
-                                    FROM tbl_user AS u 
-                                    LEFT JOIN tbl_profile_ass AS p ON u.user_id=p.user_id 
-                                    LEFT JOIN tbl_user_type AS ut ON u.user_type=ut.type_id 
-                                    LEFT JOIN tbl_association_staff AS ast ON u.user_id=ast.user_id 
-                                    LEFT JOIN tbl_association AS s ON ast.ass_id=s.ass_id 
-                                    WHERE u.status = '1' AND u.user_type !='3' AND u.user_type !='1'");
+                $sql = $con->query("
+    SELECT p.fullname, u.user_id 
+    FROM tbl_profile_ass AS p
+    LEFT JOIN tbl_user AS u ON p.user_id = u.user_id
+    WHERE u.status = '0' 
+      AND u.user_type IN ('3','4')
+");
                 while($row=mysqli_fetch_assoc($sql)){
               ?>
               <tr row_id='<?php echo $row['user_id'] ?>'>
